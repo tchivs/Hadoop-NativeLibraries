@@ -239,9 +239,9 @@ mvn package -Pdist,native-win -DskipTests -Dtar -Dmaven.javadoc.skip=true
                 Write-Success "  hdfs.dll: $size bytes"
             }
 
-            # List all DLLs and EXEs
-            Write-Info "`nAll executables and libraries:"
-            Get-ChildItem -Path "$distPath\bin" -Include *.exe,*.dll -Recurse | ForEach-Object {
+            # List all important files
+            Write-Info "`nAll important files in bin directory:"
+            Get-ChildItem -Path "$distPath\bin" -Include *.exe,*.dll,*.cmd,*.bat -Recurse | ForEach-Object {
                 Write-Host "  $($_.Name)" -ForegroundColor White
             }
 

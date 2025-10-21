@@ -183,16 +183,31 @@ jobs:
           # Find and copy built artifacts
           $distPath = "hadoop-$version-src\hadoop-dist\target\hadoop-$version"
 
+          # Copy executables (.exe files)
           if (Test-Path "$distPath\bin\*.exe") {
             Copy-Item "$distPath\bin\*.exe" -Destination "$outputDir\bin\" -Force
-            Write-Host "Copied executables"
+            Write-Host "Copied executables (.exe)"
           }
 
+          # Copy DLL files
           if (Test-Path "$distPath\bin\*.dll") {
             Copy-Item "$distPath\bin\*.dll" -Destination "$outputDir\bin\" -Force
-            Write-Host "Copied DLLs from bin"
+            Write-Host "Copied DLL files"
           }
 
+          # Copy CMD files (hadoop.cmd, hdfs.cmd, yarn.cmd, mapred.cmd, etc.)
+          if (Test-Path "$distPath\bin\*.cmd") {
+            Copy-Item "$distPath\bin\*.cmd" -Destination "$outputDir\bin\" -Force
+            Write-Host "Copied CMD scripts"
+          }
+
+          # Copy BAT files if any
+          if (Test-Path "$distPath\bin\*.bat") {
+            Copy-Item "$distPath\bin\*.bat" -Destination "$outputDir\bin\" -Force
+            Write-Host "Copied BAT scripts"
+          }
+
+          # Copy native DLLs from lib directory
           if (Test-Path "$distPath\lib\native\*.dll") {
             Copy-Item "$distPath\lib\native\*.dll" -Destination "$outputDir\lib\" -Force
             Write-Host "Copied native DLLs"
