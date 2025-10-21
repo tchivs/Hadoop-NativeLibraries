@@ -106,6 +106,10 @@ jobs:
           echo "BUILD_ARCH=${{ matrix.arch }}" >> $env:GITHUB_ENV
           echo "PLATFORM_NAME=${{ matrix.platform_name }}" >> $env:GITHUB_ENV
 
+          # Add Git Bash to PATH for shell scripts
+          echo "C:\Program Files\Git\bin" >> $env:GITHUB_PATH
+          echo "C:\Program Files\Git\usr\bin" >> $env:GITHUB_PATH
+
       - name: Download Hadoop source
         if: steps.should_build.outputs.should_build == 'true'
         shell: pwsh
@@ -146,7 +150,7 @@ jobs:
           cd hadoop-%HADOOP_VERSION%-src
 
           echo Building Hadoop native libraries for ${{ matrix.arch }}...
-          mvn package -Pdist,native-win -DskipTests -Dtar -Dmaven.javadoc.skip=true
+          mvn package -Pdist,native-win -DskipTests -Dtar -Dmaven.javadoc.skip=true -Dcontainer-executor.conf.dir=/etc/hadoop -Drequire.fuse=false
 
           if errorlevel 1 (
             echo Build failed for ${{ matrix.arch }}

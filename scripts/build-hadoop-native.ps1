@@ -197,7 +197,7 @@ if (-not $SkipBuild) {
 @echo off
 call "$vcvarsPath"
 echo Building Hadoop native libraries with Maven for $arch...
-mvn package -Pdist,native-win -DskipTests -Dtar -Dmaven.javadoc.skip=true
+mvn package -Pdist,native-win -DskipTests -Dtar -Dmaven.javadoc.skip=true -Dcontainer-executor.conf.dir=/etc/hadoop -Drequire.fuse=false
 "@
 
         $buildBat | Out-File -FilePath "build-native-$arch.bat" -Encoding ASCII
