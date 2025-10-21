@@ -29,6 +29,7 @@ jobs:
     runs-on: windows-latest
     strategy:
       matrix:
+        arch: [x64, x86]
         include:
           - arch: x64
             vcvars: vcvars64.bat
@@ -37,49 +38,74 @@ jobs:
             vcvars: vcvars32.bat
             platform_name: win32
 
-    # Filter matrix based on user input
-    if: |
-      github.event_name == 'push' ||
-      github.event.inputs.architecture == 'both' ||
-      github.event.inputs.architecture == matrix.arch
-
     steps:
+      - name: Check if build should run
+        id: should_build
+        shell: pwsh
+        run: |
+          $shouldBuild = $false
+
+          # Always build on push events
+          if ("${{ github.event_name }}" -eq "push") {
+            $shouldBuild = $true
+          }
+          # For workflow_dispatch, check architecture input
+          elseif ("${{ github.event_name }}" -eq "workflow_dispatch") {
+            $arch = "${{ github.event.inputs.architecture }}"
+            $matrixArch = "${{ matrix.arch }}"
+
+            if ($arch -eq "both" -or $arch -eq $matrixArch) {
+              $shouldBuild = $true
+            }
+          }
+
+          echo "should_build=$shouldBuild" >> $env:GITHUB_OUTPUT
+          Write-Host "Should build ${{ matrix.arch }}: $shouldBuild"
+
       - name: Checkout repository
+        if: steps.should_build.outputs.should_build == 'true'
         uses: actions/checkout@v4
 
       - name: Setup Java 8
+        if: steps.should_build.outputs.should_build == 'true'
         uses: actions/setup-java@v4
         with:
           distribution: 'zulu'
           java-version: '8'
 
       - name: Setup Maven
+        if: steps.should_build.outputs.should_build == 'true'
         uses: actions/setup-java@v4
         with:
           distribution: 'zulu'
           java-version: '8'
 
       - name: Install Visual Studio Build Tools
+        if: steps.should_build.outputs.should_build == 'true'
         uses: microsoft/setup-msbuild@v2
         with:
           vs-version: 'latest'
 
       - name: Install CMake
+        if: steps.should_build.outputs.should_build == 'true'
         uses: crazy-max/ghaction-chocolatey@v3
         with:
           args: install cmake --installargs 'ADD_CMAKE_TO_PATH=System' -y
 
       - name: Install Protocol Buffers
+        if: steps.should_build.outputs.should_build == 'true'
         uses: crazy-max/ghaction-chocolatey@v3
         with:
           args: install protoc -y
 
       - name: Install dependencies
+        if: steps.should_build.outputs.should_build == 'true'
         shell: pwsh
         run: |
           choco install -y zlib openssl
 
       - name: Set environment variables
+        if: steps.should_build.outputs.should_build == 'true'
         shell: pwsh
         run: |
           echo "HADOOP_VERSION=${{ github.event.inputs.hadoop_version || '3.3.4' }}" >> $env:GITHUB_ENV
@@ -95,6 +121,7 @@ jobs:
           }
 
       - name: Download Hadoop source
+        if: steps.should_build.outputs.should_build == 'true'
         shell: pwsh
         run: |
           $version = "${{ github.event.inputs.hadoop_version || '3.3.4' }}"
@@ -123,6 +150,7 @@ jobs:
           }
 
       - name: Build Hadoop native libraries (${{ matrix.arch }})
+        if: steps.should_build.outputs.should_build == 'true'
         shell: cmd
         run: |
           echo Building for architecture: ${{ matrix.arch }}
@@ -142,6 +170,7 @@ jobs:
           echo Build completed successfully for ${{ matrix.arch }}
 
       - name: Collect artifacts (${{ matrix.arch }})
+        if: steps.should_build.outputs.should_build == 'true'
         shell: pwsh
         run: |
           $version = "${{ github.event.inputs.hadoop_version || '3.3.4' }}"
@@ -193,6 +222,7 @@ jobs:
           "@ | Out-File "$outputDir\BUILD_INFO.txt"
 
       - name: Upload artifacts (${{ matrix.arch }})
+        if: steps.should_build.outputs.should_build == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: hadoop-${{ github.event.inputs.hadoop_version || '3.3.4' }}-windows-${{ matrix.arch }}
@@ -200,7 +230,7 @@ jobs:
           retention-days: 90
 
       - name: Create Release (${{ matrix.arch }})
-        if: github.event_name == 'workflow_dispatch'
+        if: steps.should_build.outputs.should_build == 'true' && github.event_name == 'workflow_dispatch'
         uses: softprops/action-gh-release@v1
         with:
           tag_name: hadoop-${{ github.event.inputs.hadoop_version || '3.3.4' }}-windows-${{ matrix.arch }}
