@@ -57,9 +57,7 @@ No local setup required! GitHub Actions runs the build in the cloud.
 5. **Protocol Buffers**
    - Install via chocolatey: `choco install protoc`
 
-6. **Development Libraries**
-   - zlib: `choco install zlib`
-   - OpenSSL: `choco install openssl`
+**Note:** zlib and other native dependencies are automatically handled by Maven during the build process.
 
 #### Quick Setup with Chocolatey
 
@@ -70,7 +68,7 @@ Set-ExecutionPolicy Bypass -Scope Process -Force
 iex ((New-Object System.Net.WebClient).DownloadString('https://community.chocolatey.org/install.ps1'))
 
 # Install dependencies
-choco install -y cmake protoc zlib openssl
+choco install -y cmake protoc
 ```
 
 ## ☁️ Building with GitHub Actions

@@ -98,12 +98,6 @@ jobs:
         with:
           args: install protoc -y
 
-      - name: Install dependencies
-        if: steps.should_build.outputs.should_build == 'true'
-        shell: pwsh
-        run: |
-          choco install -y zlib openssl
-
       - name: Set environment variables
         if: steps.should_build.outputs.should_build == 'true'
         shell: pwsh
@@ -111,14 +105,6 @@ jobs:
           echo "HADOOP_VERSION=${{ github.event.inputs.hadoop_version || '3.3.4' }}" >> $env:GITHUB_ENV
           echo "BUILD_ARCH=${{ matrix.arch }}" >> $env:GITHUB_ENV
           echo "PLATFORM_NAME=${{ matrix.platform_name }}" >> $env:GITHUB_ENV
-
-          if ("${{ matrix.arch }}" -eq "x64") {
-            echo "ZLIB_HOME=C:\ProgramData\chocolatey\lib\zlib" >> $env:GITHUB_ENV
-            echo "OPENSSL_HOME=C:\Program Files\OpenSSL-Win64" >> $env:GITHUB_ENV
-          } else {
-            echo "ZLIB_HOME=C:\ProgramData\chocolatey\lib\zlib" >> $env:GITHUB_ENV
-            echo "OPENSSL_HOME=C:\Program Files (x86)\OpenSSL-Win32" >> $env:GITHUB_ENV
-          }
 
       - name: Download Hadoop source
         if: steps.should_build.outputs.should_build == 'true'

@@ -57,9 +57,7 @@ Hadoop 原生库为 Windows 平台提供了性能关键的原生实现。本项�
 5. **Protocol Buffers**
    - 通过 chocolatey 安装：`choco install protoc`
 
-6. **开发库**
-   - zlib：`choco install zlib`
-   - OpenSSL：`choco install openssl`
+**注意：** zlib 和其他原生依赖由 Maven 在构建过程中自动处理。
 
 #### 使用 Chocolatey 快速安装
 
@@ -70,7 +68,7 @@ Set-ExecutionPolicy Bypass -Scope Process -Force
 iex ((New-Object System.Net.WebClient).DownloadString('https://community.chocolatey.org/install.ps1'))
 
 # 安装依赖项
-choco install -y cmake protoc zlib openssl
+choco install -y cmake protoc
 ```
 
 ## 使用 GitHub Actions 构建
