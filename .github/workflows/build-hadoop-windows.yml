@@ -150,7 +150,7 @@ jobs:
           cd hadoop-%HADOOP_VERSION%-src
 
           echo Building Hadoop native libraries for ${{ matrix.arch }}...
-          mvn package -Pdist,native-win -DskipTests -Dtar -Dmaven.javadoc.skip=true -Dcontainer-executor.conf.dir=/etc/hadoop -Drequire.fuse=false
+          mvn package -Pdist,native-win -DskipTests -Dtar -Dmaven.javadoc.skip=true -Dcontainer-executor.conf.dir=/etc/hadoop -Drequire.fuse=false -Dexec.skip=true
 
           if errorlevel 1 (
             echo Build failed for ${{ matrix.arch }}
