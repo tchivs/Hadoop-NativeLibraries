@@ -1,0 +1,244 @@
+name: Build Hadoop Windows Native Libraries
+
+on:
+  workflow_dispatch:
+    inputs:
+      hadoop_version:
+        description: 'Hadoop version to build (e.g., 3.3.4, 3.4.2)'
+        required: true
+        default: '3.3.4'
+        type: string
+      architecture:
+        description: 'Target architecture (x64, x86, or both)'
+        required: true
+        default: 'both'
+        type: choice
+        options:
+          - both
+          - x64
+          - x86
+  push:
+    branches:
+      - main
+    paths:
+      - '.github/workflows/build-hadoop-windows.yml'
+      - 'scripts/**'
+
+jobs:
+  build-hadoop-native:
+    runs-on: windows-latest
+    strategy:
+      matrix:
+        include:
+          - arch: x64
+            vcvars: vcvars64.bat
+            platform_name: win64
+          - arch: x86
+            vcvars: vcvars32.bat
+            platform_name: win32
+
+    # Filter matrix based on user input
+    if: |
+      github.event_name == 'push' ||
+      github.event.inputs.architecture == 'both' ||
+      github.event.inputs.architecture == matrix.arch
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Java 8
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'zulu'
+          java-version: '8'
+
+      - name: Setup Maven
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'zulu'
+          java-version: '8'
+
+      - name: Install Visual Studio Build Tools
+        uses: microsoft/setup-msbuild@v2
+        with:
+          vs-version: 'latest'
+
+      - name: Install CMake
+        uses: crazy-max/ghaction-chocolatey@v3
+        with:
+          args: install cmake --installargs 'ADD_CMAKE_TO_PATH=System' -y
+
+      - name: Install Protocol Buffers
+        uses: crazy-max/ghaction-chocolatey@v3
+        with:
+          args: install protoc -y
+
+      - name: Install dependencies
+        shell: pwsh
+        run: |
+          choco install -y zlib openssl
+
+      - name: Set environment variables
+        shell: pwsh
+        run: |
+          echo "HADOOP_VERSION=${{ github.event.inputs.hadoop_version || '3.3.4' }}" >> $env:GITHUB_ENV
+          echo "BUILD_ARCH=${{ matrix.arch }}" >> $env:GITHUB_ENV
+          echo "PLATFORM_NAME=${{ matrix.platform_name }}" >> $env:GITHUB_ENV
+
+          if ("${{ matrix.arch }}" -eq "x64") {
+            echo "ZLIB_HOME=C:\ProgramData\chocolatey\lib\zlib" >> $env:GITHUB_ENV
+            echo "OPENSSL_HOME=C:\Program Files\OpenSSL-Win64" >> $env:GITHUB_ENV
+          } else {
+            echo "ZLIB_HOME=C:\ProgramData\chocolatey\lib\zlib" >> $env:GITHUB_ENV
+            echo "OPENSSL_HOME=C:\Program Files (x86)\OpenSSL-Win32" >> $env:GITHUB_ENV
+          }
+
+      - name: Download Hadoop source
+        shell: pwsh
+        run: |
+          $version = "${{ github.event.inputs.hadoop_version || '3.3.4' }}"
+          $url = "https://archive.apache.org/dist/hadoop/common/hadoop-$version/hadoop-$version-src.tar.gz"
+          $sourceArchive = "hadoop-$version-src.tar.gz"
+
+          if (Test-Path $sourceArchive) {
+            Write-Host "Source archive already exists, skipping download"
+          } else {
+            Write-Host "Downloading Hadoop $version source..."
+            Invoke-WebRequest -Uri $url -OutFile $sourceArchive
+          }
+
+          if (-not (Test-Path "hadoop-$version-src")) {
+            Write-Host "Extracting source..."
+            tar -xzf $sourceArchive
+
+            if (Test-Path "hadoop-$version-src") {
+              Write-Host "Source extracted successfully"
+            } else {
+              Write-Error "Failed to extract source"
+              exit 1
+            }
+          } else {
+            Write-Host "Source directory already exists"
+          }
+
+      - name: Build Hadoop native libraries (${{ matrix.arch }})
+        shell: cmd
+        run: |
+          echo Building for architecture: ${{ matrix.arch }}
+
+          call "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Auxiliary\Build\${{ matrix.vcvars }}"
+
+          cd hadoop-%HADOOP_VERSION%-src
+
+          echo Building Hadoop native libraries for ${{ matrix.arch }}...
+          mvn package -Pdist,native-win -DskipTests -Dtar -Dmaven.javadoc.skip=true
+
+          if errorlevel 1 (
+            echo Build failed for ${{ matrix.arch }}
+            exit /b 1
+          )
+
+          echo Build completed successfully for ${{ matrix.arch }}
+
+      - name: Collect artifacts (${{ matrix.arch }})
+        shell: pwsh
+        run: |
+          $version = "${{ github.event.inputs.hadoop_version || '3.3.4' }}"
+          $arch = "${{ matrix.arch }}"
+          $outputDir = "hadoop-$version-windows-$arch"
+
+          New-Item -ItemType Directory -Force -Path $outputDir\bin
+          New-Item -ItemType Directory -Force -Path $outputDir\lib
+
+          # Find and copy built artifacts
+          $distPath = "hadoop-$version-src\hadoop-dist\target\hadoop-$version"
+
+          if (Test-Path "$distPath\bin\*.exe") {
+            Copy-Item "$distPath\bin\*.exe" -Destination "$outputDir\bin\" -Force
+            Write-Host "Copied executables"
+          }
+
+          if (Test-Path "$distPath\bin\*.dll") {
+            Copy-Item "$distPath\bin\*.dll" -Destination "$outputDir\bin\" -Force
+            Write-Host "Copied DLLs from bin"
+          }
+
+          if (Test-Path "$distPath\lib\native\*.dll") {
+            Copy-Item "$distPath\lib\native\*.dll" -Destination "$outputDir\lib\" -Force
+            Write-Host "Copied native DLLs"
+          }
+
+          # List what was built
+          Write-Host "`nBuilt artifacts for $arch :"
+          Get-ChildItem -Recurse $outputDir
+
+          # Check file architecture using dumpbin (if available)
+          $dumpbin = "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Tools\MSVC\*\bin\Hostx64\x64\dumpbin.exe"
+          if (Test-Path $dumpbin) {
+            Write-Host "`nVerifying architecture of hadoop.dll:"
+            & (Get-Item $dumpbin | Select-Object -First 1).FullName /headers "$outputDir\bin\hadoop.dll" | Select-String "machine"
+          }
+
+          # Create version info file
+          @"
+          Hadoop Version: $version
+          Build Date: $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')
+          Architecture: $arch
+          Platform: Windows ${{ matrix.platform_name }}
+          Built with: Visual Studio 2022
+
+          IMPORTANT: This build is for $arch architecture only.
+          Make sure your Java JVM matches this architecture ($arch).
+          "@ | Out-File "$outputDir\BUILD_INFO.txt"
+
+      - name: Upload artifacts (${{ matrix.arch }})
+        uses: actions/upload-artifact@v4
+        with:
+          name: hadoop-${{ github.event.inputs.hadoop_version || '3.3.4' }}-windows-${{ matrix.arch }}
+          path: hadoop-${{ github.event.inputs.hadoop_version || '3.3.4' }}-windows-${{ matrix.arch }}/
+          retention-days: 90
+
+      - name: Create Release (${{ matrix.arch }})
+        if: github.event_name == 'workflow_dispatch'
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: hadoop-${{ github.event.inputs.hadoop_version || '3.3.4' }}-windows-${{ matrix.arch }}
+          name: Hadoop ${{ github.event.inputs.hadoop_version || '3.3.4' }} Windows Native Libraries (${{ matrix.arch }})
+          body: |
+            # Hadoop ${{ github.event.inputs.hadoop_version || '3.3.4' }} Windows Native Libraries (${{ matrix.arch }})
+
+            This release contains the native Windows libraries for Hadoop ${{ github.event.inputs.hadoop_version || '3.3.4' }}.
+
+            ## Architecture
+            **${{ matrix.arch }}** (${{ matrix.platform_name }})
+
+            ⚠️ **IMPORTANT**: Make sure your Java JVM architecture matches this build (${{ matrix.arch }}).
+
+            ## Contents
+            - `bin/`: Contains winutils.exe and DLL files
+            - `lib/`: Contains native library files (hadoop.dll, hdfs.dll, etc.)
+
+            ## Usage
+            1. Extract the archive
+            2. Set `HADOOP_HOME` to the extracted directory
+            3. Add `%HADOOP_HOME%\bin` to your PATH
+            4. Verify your Java is ${{ matrix.arch }}: `java -version` (should show "${{ matrix.arch }}" or "${{ matrix.platform_name }}")
+
+            ## Build Information
+            - Built with: Visual Studio 2022
+            - Platform: Windows ${{ matrix.platform_name }}
+            - Architecture: ${{ matrix.arch }}
+            - Build Date: ${{ github.event.repository.updated_at }}
+
+            ## Verification
+            After installation, verify with:
+            ```cmd
+            hadoop checknative -a
+            ```
+          files: |
+            hadoop-${{ github.event.inputs.hadoop_version || '3.3.4' }}-windows-${{ matrix.arch }}/**/*
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
