@@ -4,9 +4,9 @@ on:
   workflow_dispatch:
     inputs:
       hadoop_version:
-        description: 'Hadoop version to build (e.g., 3.3.4, 3.4.2)'
+        description: 'Hadoop version to build (e.g., 3.4.2, 3.4.2)'
         required: true
-        default: '3.3.4'
+        default: '3.4.2'
         type: string
       architecture:
         description: 'Target architecture (x64, x86, or both)'
@@ -102,7 +102,7 @@ jobs:
         if: steps.should_build.outputs.should_build == 'true'
         shell: pwsh
         run: |
-          echo "HADOOP_VERSION=${{ github.event.inputs.hadoop_version || '3.3.4' }}" >> $env:GITHUB_ENV
+          echo "HADOOP_VERSION=${{ github.event.inputs.hadoop_version || '3.4.2' }}" >> $env:GITHUB_ENV
           echo "BUILD_ARCH=${{ matrix.arch }}" >> $env:GITHUB_ENV
           echo "PLATFORM_NAME=${{ matrix.platform_name }}" >> $env:GITHUB_ENV
 
@@ -110,7 +110,7 @@ jobs:
         if: steps.should_build.outputs.should_build == 'true'
         shell: pwsh
         run: |
-          $version = "${{ github.event.inputs.hadoop_version || '3.3.4' }}"
+          $version = "${{ github.event.inputs.hadoop_version || '3.4.2' }}"
           $url = "https://archive.apache.org/dist/hadoop/common/hadoop-$version/hadoop-$version-src.tar.gz"
           $sourceArchive = "hadoop-$version-src.tar.gz"
 
@@ -159,7 +159,7 @@ jobs:
         if: steps.should_build.outputs.should_build == 'true'
         shell: pwsh
         run: |
-          $version = "${{ github.event.inputs.hadoop_version || '3.3.4' }}"
+          $version = "${{ github.event.inputs.hadoop_version || '3.4.2' }}"
           $arch = "${{ matrix.arch }}"
           $outputDir = "hadoop-$version-windows-$arch"
 
@@ -226,20 +226,20 @@ jobs:
         if: steps.should_build.outputs.should_build == 'true'
         uses: actions/upload-artifact@v4
         with:
-          name: hadoop-${{ github.event.inputs.hadoop_version || '3.3.4' }}-windows-${{ matrix.arch }}
-          path: hadoop-${{ github.event.inputs.hadoop_version || '3.3.4' }}-windows-${{ matrix.arch }}/
+          name: hadoop-${{ github.event.inputs.hadoop_version || '3.4.2' }}-windows-${{ matrix.arch }}
+          path: hadoop-${{ github.event.inputs.hadoop_version || '3.4.2' }}-windows-${{ matrix.arch }}/
           retention-days: 90
 
       - name: Create Release (${{ matrix.arch }})
         if: steps.should_build.outputs.should_build == 'true' && github.event_name == 'workflow_dispatch'
         uses: softprops/action-gh-release@v1
         with:
-          tag_name: hadoop-${{ github.event.inputs.hadoop_version || '3.3.4' }}-windows-${{ matrix.arch }}
-          name: Hadoop ${{ github.event.inputs.hadoop_version || '3.3.4' }} Windows Native Libraries (${{ matrix.arch }})
+          tag_name: hadoop-${{ github.event.inputs.hadoop_version || '3.4.2' }}-windows-${{ matrix.arch }}
+          name: Hadoop ${{ github.event.inputs.hadoop_version || '3.4.2' }} Windows Native Libraries (${{ matrix.arch }})
           body: |
-            # Hadoop ${{ github.event.inputs.hadoop_version || '3.3.4' }} Windows Native Libraries (${{ matrix.arch }})
+            # Hadoop ${{ github.event.inputs.hadoop_version || '3.4.2' }} Windows Native Libraries (${{ matrix.arch }})
 
-            This release contains the native Windows libraries for Hadoop ${{ github.event.inputs.hadoop_version || '3.3.4' }}.
+            This release contains the native Windows libraries for Hadoop ${{ github.event.inputs.hadoop_version || '3.4.2' }}.
 
             ## Architecture
             **${{ matrix.arch }}** (${{ matrix.platform_name }})
@@ -268,7 +268,7 @@ jobs:
             hadoop checknative -a
             ```
           files: |
-            hadoop-${{ github.event.inputs.hadoop_version || '3.3.4' }}-windows-${{ matrix.arch }}/**/*
+            hadoop-${{ github.event.inputs.hadoop_version || '3.4.2' }}-windows-${{ matrix.arch }}/**/*
           draft: false
           prerelease: false
         env:

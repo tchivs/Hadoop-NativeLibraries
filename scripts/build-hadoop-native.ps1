@@ -3,7 +3,7 @@
 
 param(
     [Parameter(Mandatory=$false)]
-    [string]$HadoopVersion = "3.3.4",
+    [string]$HadoopVersion = "3.4.2",
 
     [Parameter(Mandatory=$false)]
     [string]$BuildDir = ".\build",

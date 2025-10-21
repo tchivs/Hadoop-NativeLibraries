@@ -46,7 +46,7 @@ set PATH=%PATH%;%HADOOP_HOME%\bin
 1. Go to the **Actions** tab
 2. Select "Build Hadoop Windows Native Libraries"
 3. Click "Run workflow"
-4. Enter Hadoop version (e.g., `3.3.4`)
+4. Enter Hadoop version (e.g., `3.4.2`)
 5. Select architecture: `x64`, `x86`, or `both`
 6. Download artifacts from the completed workflow
 
@@ -58,13 +58,13 @@ git clone https://github.com/tchivs/Hadoop-NativeLibraries.git
 cd Hadoop-NativeLibraries
 
 # Build x64 version (default)
-.\scripts\build-hadoop-native.ps1 -HadoopVersion "3.3.4"
+.\scripts\build-hadoop-native.ps1 -HadoopVersion "3.4.2"
 
 # Build x86 version
-.\scripts\build-hadoop-native.ps1 -HadoopVersion "3.3.4" -Architecture "x86"
+.\scripts\build-hadoop-native.ps1 -HadoopVersion "3.4.2" -Architecture "x86"
 
 # Build both x86 and x64
-.\scripts\build-hadoop-native.ps1 -HadoopVersion "3.3.4" -Architecture "both"
+.\scripts\build-hadoop-native.ps1 -HadoopVersion "3.4.2" -Architecture "both"
 ```
 
 See [BUILD_GUIDE.md](BUILD_GUIDE.md) for detailed build instructions.

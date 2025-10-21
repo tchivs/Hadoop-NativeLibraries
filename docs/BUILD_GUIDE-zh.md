@@ -115,22 +115,22 @@ GitHub Action 将会：
 cd Hadoop-NativeLibraries
 
 # 构建 x64 版本（默认）
-.\scripts\build-hadoop-native.ps1 -HadoopVersion "3.3.4"
+.\scripts\build-hadoop-native.ps1 -HadoopVersion "3.4.2"
 
 # 构建 x86 版本
-.\scripts\build-hadoop-native.ps1 -HadoopVersion "3.3.4" -Architecture "x86"
+.\scripts\build-hadoop-native.ps1 -HadoopVersion "3.4.2" -Architecture "x86"
 
 # 同时构建 x64 和 x86 版本
-.\scripts\build-hadoop-native.ps1 -HadoopVersion "3.3.4" -Architecture "both"
+.\scripts\build-hadoop-native.ps1 -HadoopVersion "3.4.2" -Architecture "both"
 
 # 使用自定义构建目录
-.\scripts\build-hadoop-native.ps1 -HadoopVersion "3.3.4" -BuildDir "C:\builds\hadoop"
+.\scripts\build-hadoop-native.ps1 -HadoopVersion "3.4.2" -BuildDir "C:\builds\hadoop"
 
 # 清理构建（删除现有构建目录）
-.\scripts\build-hadoop-native.ps1 -HadoopVersion "3.3.4" -CleanBuild
+.\scripts\build-hadoop-native.ps1 -HadoopVersion "3.4.2" -CleanBuild
 
 # 跳过下载（如果源代码已存在）
-.\scripts\build-hadoop-native.ps1 -HadoopVersion "3.3.4" -SkipDownload
+.\scripts\build-hadoop-native.ps1 -HadoopVersion "3.4.2" -SkipDownload
 ```
 
 **脚本参数：**
@@ -154,9 +154,9 @@ scripts\build-hadoop-native.bat
 
 ```cmd
 # 1. 下载 Hadoop 源代码
-curl -L -O https://archive.apache.org/dist/hadoop/common/hadoop-3.3.4/hadoop-3.3.4-src.tar.gz
-tar -xzf hadoop-3.3.4-src.tar.gz
-cd hadoop-3.3.4-src
+curl -L -O https://archive.apache.org/dist/hadoop/common/hadoop-3.4.2/hadoop-3.4.2-src.tar.gz
+tar -xzf hadoop-3.4.2-src.tar.gz
+cd hadoop-3.4.2-src
 
 # 2. 设置 Visual Studio 环境
 # 对于 x64：
@@ -168,8 +168,8 @@ call "C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Auxiliary\Build
 mvn package -Pdist,native-win -DskipTests -Dtar -Dmaven.javadoc.skip=true
 
 # 4. 在以下位置查找输出：
-# hadoop-dist\target\hadoop-3.3.4\bin\
-# hadoop-dist\target\hadoop-3.3.4\lib\native\
+# hadoop-dist\target\hadoop-3.4.2\bin\
+# hadoop-dist\target\hadoop-3.4.2\lib\native\
 ```
 
 ### 构建时间

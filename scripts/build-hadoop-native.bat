@@ -4,7 +4,7 @@ REM This is a wrapper script that calls the PowerShell build script
 
 setlocal
 
-set HADOOP_VERSION=3.3.4
+set HADOOP_VERSION=3.4.2
 set BUILD_DIR=.\build
 
 REM Check if PowerShell is available

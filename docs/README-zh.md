@@ -38,7 +38,7 @@ set PATH=%PATH%;%HADOOP_HOME%\bin
 1. 进入仓库的 **Actions** 标签页
 2. 选择 "Build Hadoop Windows Native Libraries" 工作流
 3. 点击 "Run workflow"
-4. 输入 Hadoop 版本（例如 `3.3.4`）
+4. 输入 Hadoop 版本（例如 `3.4.2`）
 5. 选择架构：`x64`、`x86` 或 `both`
 6. 从完成的工作流中下载构建产物
 
@@ -50,13 +50,13 @@ git clone https://github.com/YOUR_USERNAME/Hadoop-NativeLibraries.git
 cd Hadoop-NativeLibraries
 
 # 构建 x64 版本（默认）
-.\scripts\build-hadoop-native.ps1 -HadoopVersion "3.3.4"
+.\scripts\build-hadoop-native.ps1 -HadoopVersion "3.4.2"
 
 # 构建 x86 版本
-.\scripts\build-hadoop-native.ps1 -HadoopVersion "3.3.4" -Architecture "x86"
+.\scripts\build-hadoop-native.ps1 -HadoopVersion "3.4.2" -Architecture "x86"
 
 # 同时构建 x86 和 x64 版本
-.\scripts\build-hadoop-native.ps1 -HadoopVersion "3.3.4" -Architecture "both"
+.\scripts\build-hadoop-native.ps1 -HadoopVersion "3.4.2" -Architecture "both"
 ```
 
 详细构建说明请参阅 [BUILD_GUIDE-zh.md](BUILD_GUIDE-zh.md)。
@@ -77,7 +77,7 @@ cd Hadoop-NativeLibraries
 
 ## 支持的版本
 
-- Hadoop 3.3.x 系列（3.3.4, 3.3.5, 3.3.6）
+- Hadoop 3.3.x 系列（3.4.2, 3.3.5, 3.3.6）
 - Hadoop 3.4.x 系列（3.4.0, 3.4.1, 3.4.2）
 
 ## 支持的架构

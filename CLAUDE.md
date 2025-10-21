@@ -58,7 +58,7 @@ A comprehensive PowerShell script that:
 - Creates build metadata
 
 **Parameters:**
-- `HadoopVersion` - Version to build (default: 3.3.4)
+- `HadoopVersion` - Version to build (default: 3.4.2)
 - `BuildDir` - Build directory (default: .\build)
 - `SkipDownload` - Skip source download
 - `SkipBuild` - Skip build phase

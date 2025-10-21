@@ -115,26 +115,26 @@ After the workflow completes:
 cd Hadoop-NativeLibraries
 
 # Build x64 version (default)
-.\scripts\build-hadoop-native.ps1 -HadoopVersion "3.3.4"
+.\scripts\build-hadoop-native.ps1 -HadoopVersion "3.4.2"
 
 # Build x86 version
-.\scripts\build-hadoop-native.ps1 -HadoopVersion "3.3.4" -Architecture "x86"
+.\scripts\build-hadoop-native.ps1 -HadoopVersion "3.4.2" -Architecture "x86"
 
 # Build both x64 and x86 versions
-.\scripts\build-hadoop-native.ps1 -HadoopVersion "3.3.4" -Architecture "both"
+.\scripts\build-hadoop-native.ps1 -HadoopVersion "3.4.2" -Architecture "both"
 
 # With custom build directory
-.\scripts\build-hadoop-native.ps1 -HadoopVersion "3.3.4" -BuildDir "C:\builds\hadoop"
+.\scripts\build-hadoop-native.ps1 -HadoopVersion "3.4.2" -BuildDir "C:\builds\hadoop"
 
 # Clean build (remove existing build directory)
-.\scripts\build-hadoop-native.ps1 -HadoopVersion "3.3.4" -CleanBuild
+.\scripts\build-hadoop-native.ps1 -HadoopVersion "3.4.2" -CleanBuild
 
 # Skip download (if source already exists)
-.\scripts\build-hadoop-native.ps1 -HadoopVersion "3.3.4" -SkipDownload
+.\scripts\build-hadoop-native.ps1 -HadoopVersion "3.4.2" -SkipDownload
 ```
 
 **Script Parameters:**
-- `-HadoopVersion`: Version to build (e.g., "3.3.4")
+- `-HadoopVersion`: Version to build (e.g., "3.4.2")
 - `-Architecture`: Target architecture - `x64` (default), `x86`, or `both`
 - `-BuildDir`: Custom build directory (default: `.\build`)
 - `-CleanBuild`: Remove existing build directory before building
@@ -154,9 +154,9 @@ If you prefer to build manually:
 
 ```cmd
 # 1. Download Hadoop source
-curl -L -O https://archive.apache.org/dist/hadoop/common/hadoop-3.3.4/hadoop-3.3.4-src.tar.gz
-tar -xzf hadoop-3.3.4-src.tar.gz
-cd hadoop-3.3.4-src
+curl -L -O https://archive.apache.org/dist/hadoop/common/hadoop-3.4.2/hadoop-3.4.2-src.tar.gz
+tar -xzf hadoop-3.4.2-src.tar.gz
+cd hadoop-3.4.2-src
 
 # 2. Set up Visual Studio environment
 call "C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Auxiliary\Build\vcvars64.bat"
@@ -165,8 +165,8 @@ call "C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Auxiliary\Build
 mvn package -Pdist,native-win -DskipTests -Dtar -Dmaven.javadoc.skip=true
 
 # 4. Find output in:
-# hadoop-dist\target\hadoop-3.3.4\bin\
-# hadoop-dist\target\hadoop-3.3.4\lib\native\
+# hadoop-dist\target\hadoop-3.4.2\bin\
+# hadoop-dist\target\hadoop-3.4.2\lib\native\
 ```
 
 ### ⏱️ Build Time
