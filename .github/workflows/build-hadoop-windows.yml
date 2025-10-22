@@ -121,7 +121,7 @@ jobs:
         with:
           arch: ${{ matrix.arch }}
           vsversion: 2022
-          toolset: 14.34.31933
+          toolset: 14.44.35207
       - name: Patch winutils name conflict
         if: steps.should_build.outputs.should_build == 'true'
         shell: pwsh
