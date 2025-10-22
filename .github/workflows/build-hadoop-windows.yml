@@ -123,6 +123,33 @@ jobs:
             Write-Host "Source directory already exists"
           }
 
+      - name: Patch winutils name conflict
+        if: steps.should_build.outputs.should_build == 'true'
+        shell: pwsh
+        run: |
+          $base = "hadoop-$env:HADOOP_VERSION-src\hadoop-common-project\hadoop-common\src\main\winutils"
+          $targets = @(
+            Join-Path $base "include\winutils.h",
+            Join-Path $base "libwinutils.c"
+          )
+
+          foreach ($file in $targets) {
+            if (-not (Test-Path $file)) {
+              Write-Warning "Expected file not found: $file"
+              continue
+            }
+
+            $original = Get-Content -Raw -Path $file
+            $patched = $original -replace '\bGetFileInformationByName\b', 'HadoopGetFileInformationByName'
+
+            if ($original -ne $patched) {
+              Set-Content -Path $file -Value $patched -Encoding UTF8
+              Write-Host "Patched $file to avoid Windows SDK symbol conflict."
+            } else {
+              Write-Host "No patch needed for $file."
+            }
+          }
+
       - name: Build Hadoop native libraries (${{ matrix.arch }})
         if: steps.should_build.outputs.should_build == 'true'
         shell: pwsh
