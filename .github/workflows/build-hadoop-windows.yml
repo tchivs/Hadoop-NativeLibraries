@@ -117,7 +117,7 @@ jobs:
         uses: ilammy/msvc-dev-cmd@v1
         with:
           arch: ${{ matrix.arch }}
-          toolset: 14.4
+          vsversion: 2022
 
       - name: Patch winutils name conflict
         if: steps.should_build.outputs.should_build == 'true'
