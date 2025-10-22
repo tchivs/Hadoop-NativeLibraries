@@ -185,13 +185,14 @@ jobs:
           Write-Host "Platform: $env:Platform"
           Write-Host "Architecture: $env:BUILD_ARCH`n"
 
-          # Build hadoop-common and hadoop-hdfs-native-client
+          # Build hadoop-common (includes winutils.exe and hadoop.dll)
+          # Note: Skipping hadoop-hdfs-native-client due to CMake toolchain issues
           mvn package `
             "-Pnative-win" `
             "-DskipTests" `
             "-Dmaven.javadoc.skip=true" `
             "-Drequire.fuse=false" `
-            "-pl" ":hadoop-common,:hadoop-hdfs-native-client,:hadoop-maven-plugins" `
+            "-pl" ":hadoop-common,:hadoop-maven-plugins" `
             "-am"
 
           $mvnExit = $LASTEXITCODE
@@ -222,9 +223,9 @@ jobs:
           # Source root is now hadoop-src instead of hadoop-$version-src
           $sourceRoot = "hadoop-src"
 
+          # Only collect from hadoop-common (winutils.exe, hadoop.dll, etc.)
           $binSources = @(
-            Join-Path $sourceRoot "hadoop-common-project\hadoop-common\target\bin",
-            Join-Path $sourceRoot "hadoop-hdfs-project\hadoop-hdfs-native-client\target\bin"
+            Join-Path $sourceRoot "hadoop-common-project\hadoop-common\target\bin"
           )
 
           $filesCopied = 0
@@ -250,12 +251,10 @@ jobs:
             }
           }
 
+          # Only collect from hadoop-common native libraries
           $libSources = @(
             Join-Path $sourceRoot "hadoop-common-project\hadoop-common\target\native\bin",
-            Join-Path $sourceRoot "hadoop-common-project\hadoop-common\target\native",
-            Join-Path $sourceRoot "hadoop-hdfs-project\hadoop-hdfs-native-client\target",
-            Join-Path $sourceRoot "hadoop-hdfs-project\hadoop-hdfs-native-client\target\native",
-            Join-Path $sourceRoot "hadoop-hdfs-project\hadoop-hdfs-native-client\target\native\bin"
+            Join-Path $sourceRoot "hadoop-common-project\hadoop-common\target\native"
           )
 
           foreach ($libSource in $libSources) {
