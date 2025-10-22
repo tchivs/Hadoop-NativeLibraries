@@ -73,31 +73,6 @@ jobs:
           distribution: 'zulu'
           java-version: '8'
 
-      - name: Setup Maven
-        if: steps.should_build.outputs.should_build == 'true'
-        uses: actions/setup-java@v4
-        with:
-          distribution: 'zulu'
-          java-version: '8'
-
-      - name: Install Visual Studio Build Tools
-        if: steps.should_build.outputs.should_build == 'true'
-        uses: microsoft/setup-msbuild@v2
-        with:
-          vs-version: 'latest'
-
-      - name: Install CMake
-        if: steps.should_build.outputs.should_build == 'true'
-        uses: crazy-max/ghaction-chocolatey@v3
-        with:
-          args: install cmake --installargs 'ADD_CMAKE_TO_PATH=System' -y
-
-      - name: Install Protocol Buffers
-        if: steps.should_build.outputs.should_build == 'true'
-        uses: crazy-max/ghaction-chocolatey@v3
-        with:
-          args: install protoc -y
-
       - name: Set environment variables
         if: steps.should_build.outputs.should_build == 'true'
         shell: pwsh
@@ -188,13 +163,13 @@ jobs:
 
           foreach ($binSource in $binSources) {
             if (Test-Path $binSource) {
-              Get-ChildItem -Path $binSource -Include *.exe -File -ErrorAction SilentlyContinue | ForEach-Object {
+              Get-ChildItem -Path $binSource -Filter *.exe -File -ErrorAction SilentlyContinue | ForEach-Object {
                 Copy-Item $_.FullName -Destination "$outputDir\bin\" -Force
               }
-              Get-ChildItem -Path $binSource -Include *.dll -File -ErrorAction SilentlyContinue | ForEach-Object {
+              Get-ChildItem -Path $binSource -Filter *.dll -File -ErrorAction SilentlyContinue | ForEach-Object {
                 Copy-Item $_.FullName -Destination "$outputDir\bin\" -Force
               }
-              Get-ChildItem -Path $binSource -Include *.cmd,*.bat -File -ErrorAction SilentlyContinue | ForEach-Object {
+              Get-ChildItem -Path $binSource -File -ErrorAction SilentlyContinue | Where-Object { $_.Extension -in @('.cmd', '.bat') } | ForEach-Object {
                 Copy-Item $_.FullName -Destination "$outputDir\bin\" -Force
               }
             }
@@ -210,7 +185,7 @@ jobs:
 
           foreach ($libSource in $libSources) {
             if (Test-Path $libSource) {
-              Get-ChildItem -Path $libSource -Include *.dll -File -ErrorAction SilentlyContinue | ForEach-Object {
+              Get-ChildItem -Path $libSource -Filter *.dll -File -ErrorAction SilentlyContinue | ForEach-Object {
                 Copy-Item $_.FullName -Destination "$outputDir\lib\" -Force
               }
             }
