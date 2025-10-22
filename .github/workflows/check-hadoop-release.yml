@@ -32,7 +32,11 @@ jobs:
 
             const releaseTags = response.data
               .map(ref => ref.ref?.replace('refs/tags/', ''))
-              .filter(name => name && name.startsWith('rel/release-'))
+              .filter(name => {
+                if (!name) return false;
+                const match = name.match(/^rel\/release-(\d+\.\d+\.\d+(?:[-\.][A-Za-z0-9]+)*)$/);
+                return Boolean(match);
+              })
               .sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
 
             if (!releaseTags.length) {
