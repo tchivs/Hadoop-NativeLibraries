@@ -19,41 +19,45 @@ jobs:
 
       - name: Detect latest Hadoop release
         id: detect
-        run: |
-          set -euo pipefail
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
 
-          latest_tag=$(curl -fsSL "https://api.github.com/repos/apache/hadoop/tags?per_page=100" | python - <<'PYCODE'
-            import json, sys
-            tags = json.load(sys.stdin)
-            releases = [t["name"] for t in tags if t["name"].startswith("rel/release-")]
-            releases.sort()
-            print(releases[-1] if releases else "", end="")
-          PYCODE
-          )
+            const { data } = await github.repos.listTags({
+              owner: 'apache',
+              repo: 'hadoop',
+              per_page: 100,
+            });
 
-          if [ -z "${latest_tag}" ]; then
-            echo "Unable to determine the latest Hadoop release tag." >&2
-            exit 1
-          fi
+            const releaseTags = data
+              .map(tag => tag.name)
+              .filter(name => name.startsWith('rel/release-'))
+              .sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
 
-          latest_version="${latest_tag#rel/release-}"
-          current_tag=""
-          if [ -f current-release.txt ]; then
-            current_tag=$(tr -d '\r\n' < current-release.txt)
-          fi
+            if (!releaseTags.length) {
+              core.setFailed('Unable to determine the latest Hadoop release tag.');
+              return;
+            }
 
-          echo "Latest upstream tag: ${latest_tag}"
-          echo "Stored tag: ${current_tag:-<none>}"
+            const latestTag = releaseTags[releaseTags.length - 1];
+            const latestVersion = latestTag.replace('rel/release-', '');
+            const currentTag = fs.existsSync('current-release.txt')
+              ? fs.readFileSync('current-release.txt', 'utf8').trim()
+              : '';
 
-          if [ "${current_tag}" != "${latest_tag}" ]; then
-            echo "${latest_tag}" > current-release.txt
-            echo "update_needed=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "update_needed=false" >> "$GITHUB_OUTPUT"
-          fi
+            core.info(`Latest upstream tag: ${latestTag}`);
+            core.info(`Stored tag: ${currentTag || '<none>'}`);
 
-          echo "tag=${latest_tag}" >> "$GITHUB_OUTPUT"
-          echo "version=${latest_version}" >> "$GITHUB_OUTPUT"
+            core.setOutput('tag', latestTag);
+            core.setOutput('version', latestVersion);
+
+            if (currentTag !== latestTag) {
+              fs.writeFileSync('current-release.txt', `${latestTag}\n`);
+              core.setOutput('update_needed', 'true');
+            } else {
+              core.setOutput('update_needed', 'false');
+            }
 
       - name: Commit updated release marker
         if: steps.detect.outputs.update_needed == 'true'
