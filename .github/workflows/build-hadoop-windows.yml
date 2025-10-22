@@ -129,8 +129,8 @@ jobs:
         run: |
           $base = "hadoop-$env:HADOOP_VERSION-src\hadoop-common-project\hadoop-common\src\main\winutils"
           $targets = @(
-            Join-Path $base "include\winutils.h",
-            Join-Path $base "libwinutils.c"
+            "$base\include\winutils.h",
+            "$base\libwinutils.c"
           )
 
           foreach ($file in $targets) {
