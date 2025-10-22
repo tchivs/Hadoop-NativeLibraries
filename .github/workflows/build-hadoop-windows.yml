@@ -283,17 +283,16 @@ jobs:
           }
 
           # Create version info file
-          $buildInfo = @"
-Hadoop Version: $version
-Build Date: $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss UTC')
-Architecture: $arch
-Platform: Windows $env:PLATFORM_NAME
-Built with: Visual Studio 2022
-Source: Apache Hadoop Git Repository
-
-IMPORTANT: This build is for $arch architecture only.
-Make sure your Java JVM matches this architecture ($arch).
-"@
+          $buildDate = Get-Date -Format 'yyyy-MM-dd HH:mm:ss UTC'
+          $buildInfo = "Hadoop Version: $version`n"
+          $buildInfo += "Build Date: $buildDate`n"
+          $buildInfo += "Architecture: $arch`n"
+          $buildInfo += "Platform: Windows $env:PLATFORM_NAME`n"
+          $buildInfo += "Built with: Visual Studio 2022`n"
+          $buildInfo += "Source: Apache Hadoop Git Repository`n"
+          $buildInfo += "`n"
+          $buildInfo += "IMPORTANT: This build is for $arch architecture only.`n"
+          $buildInfo += "Make sure your Java JVM matches this architecture ($arch).`n"
           $buildInfo | Out-File "$outputDir\BUILD_INFO.txt"
 
           Write-Host "`n✓ Artifacts collected successfully" -ForegroundColor Green
