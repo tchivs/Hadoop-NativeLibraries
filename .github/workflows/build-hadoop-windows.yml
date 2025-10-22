@@ -180,9 +180,14 @@ jobs:
             $env:Platform = 'x64'
           }
 
+          # Set PlatformToolset to use current VS 2022 tools (v143)
+          $env:PlatformToolset = 'v143'
+          $env:PreferredToolArchitecture = 'x64'
+
           Write-Host "`nMaven build starting..." -ForegroundColor Yellow
           Write-Host "Platform: $env:Platform"
-          Write-Host "Architecture: $env:BUILD_ARCH`n"
+          Write-Host "Architecture: $env:BUILD_ARCH"
+          Write-Host "PlatformToolset: $env:PlatformToolset`n"
 
           # Build hadoop-common and hadoop-hdfs-native-client
           mvn package `
