@@ -324,9 +324,21 @@ jobs:
           path: hadoop-${{ github.event.inputs.hadoop_version || '3.4.2' }}-windows-${{ matrix.arch }}/
           retention-days: 90
 
+      - name: Create Release Archive (${{ matrix.arch }})
+        if: steps.should_build.outputs.should_build == 'true' && github.event_name == 'workflow_dispatch'
+        shell: pwsh
+        run: |
+          $version = "${{ github.event.inputs.hadoop_version || '3.4.2' }}"
+          $arch = "${{ matrix.arch }}"
+          $outputDir = "hadoop-$version-windows-$arch"
+          $archiveName = "$outputDir.zip"
+
+          Compress-Archive -Path "$outputDir\*" -DestinationPath $archiveName -Force
+          Write-Host "✓ Created release archive: $archiveName" -ForegroundColor Green
+
       - name: Create Release (${{ matrix.arch }})
         if: steps.should_build.outputs.should_build == 'true' && github.event_name == 'workflow_dispatch'
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v2
         with:
           tag_name: hadoop-${{ github.event.inputs.hadoop_version || '3.4.2' }}-windows-${{ matrix.arch }}
           name: Hadoop ${{ github.event.inputs.hadoop_version || '3.4.2' }} Windows Native Libraries (${{ matrix.arch }})
@@ -361,9 +373,8 @@ jobs:
             ```cmd
             hadoop checknative -a
             ```
-          files: |
-            hadoop-${{ github.event.inputs.hadoop_version || '3.4.2' }}-windows-${{ matrix.arch }}/**/*
+          files: hadoop-${{ github.event.inputs.hadoop_version || '3.4.2' }}-windows-${{ matrix.arch }}.zip
           draft: false
           prerelease: false
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          fail_on_unmatched_files: true
+          token: ${{ secrets.GITHUB_TOKEN }}
