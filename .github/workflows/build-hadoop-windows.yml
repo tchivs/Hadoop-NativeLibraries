@@ -268,8 +268,8 @@ jobs:
 
           # Only collect from hadoop-common native libraries
           $libSources = @(
-            Join-Path $sourceRoot "hadoop-common-project\hadoop-common\target\native\bin",
-            Join-Path $sourceRoot "hadoop-common-project\hadoop-common\target\native"
+            (Join-Path $sourceRoot "hadoop-common-project\hadoop-common\target\native\bin"),
+            (Join-Path $sourceRoot "hadoop-common-project\hadoop-common\target\native")
           )
 
           foreach ($libSource in $libSources) {
