@@ -132,6 +132,13 @@ jobs:
           $ErrorActionPreference = 'Stop'
           Write-Host "Building Hadoop native libraries for ${env:BUILD_ARCH}..."
           Push-Location "hadoop-$env:HADOOP_VERSION-src"
+
+          if ($env:BUILD_ARCH -eq 'x86') {
+            $env:Platform = 'Win32'
+          } else {
+            $env:Platform = 'x64'
+          }
+
           mvn package `
             "-Pnative-win" `
             "-DskipTests" `
@@ -139,7 +146,12 @@ jobs:
             "-Drequire.fuse=false" `
             "-pl" ":hadoop-common,:hadoop-hdfs-native-client,:hadoop-maven-plugins" `
             "-am"
+          $mvnExit = $LASTEXITCODE
           Pop-Location
+          if ($mvnExit -ne 0) {
+            Write-Error "Maven build failed for ${env:BUILD_ARCH} with exit code $mvnExit"
+            exit $mvnExit
+          }
           Write-Host "Build completed successfully for ${env:BUILD_ARCH}"
 
       - name: Collect artifacts (${{ matrix.arch }})
