@@ -158,10 +158,25 @@ jobs:
             }
           }
 
-          Write-Host "`n✓ Total files patched: $patchCount" -ForegroundColor Green
-          if ($patchCount -eq 0) {
-            Write-Warning "No files were patched. This might indicate the patch logic needs updating."
+          Write-Host "`n✓ Total C/C++ files patched: $patchCount" -ForegroundColor Green
+
+          # Patch Visual Studio project files to use current toolset (v143)
+          Write-Host "`nPatching Visual Studio project files for v143 toolset..." -ForegroundColor Cyan
+          $vcxprojFiles = Get-ChildItem -Path $base -Filter *.vcxproj
+          $toolsetPatchCount = 0
+          foreach ($projFile in $vcxprojFiles) {
+            $content = Get-Content -Raw -Path $projFile.FullName
+            # Replace any v14x toolset with v143 (current VS 2022)
+            $newContent = $content -replace '<PlatformToolset>v14[0-9]</PlatformToolset>', '<PlatformToolset>v143</PlatformToolset>'
+
+            if ($content -ne $newContent) {
+              Set-Content -Path $projFile.FullName -Value $newContent -NoNewline -Encoding UTF8
+              Write-Host "✓ Updated $($projFile.Name) to use v143 toolset" -ForegroundColor Green
+              $toolsetPatchCount++
+            }
           }
+
+          Write-Host "`n✓ Total project files patched: $toolsetPatchCount" -ForegroundColor Green
 
       - name: Build Hadoop native libraries (${{ matrix.arch }})
         if: steps.should_build.outputs.should_build == 'true'
