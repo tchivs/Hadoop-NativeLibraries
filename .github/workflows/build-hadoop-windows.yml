@@ -106,9 +106,14 @@ jobs:
           echo "BUILD_ARCH=${{ matrix.arch }}" >> $env:GITHUB_ENV
           echo "PLATFORM_NAME=${{ matrix.platform_name }}" >> $env:GITHUB_ENV
 
-          # Add Git Bash to PATH for shell scripts
-          echo "C:\Program Files\Git\bin" >> $env:GITHUB_PATH
-          echo "C:\Program Files\Git\usr\bin" >> $env:GITHUB_PATH
+          # Ensure Git Bash precedes system binaries so bash resolves correctly
+          $gitPaths = @(
+            'C:\Program Files\Git\usr\bin',
+            'C:\Program Files\Git\bin'
+          )
+          $pathEntries = $gitPaths + ($env:PATH -split ';')
+          $normalizedPath = ($pathEntries | Where-Object { $_ } | Select-Object -Unique) -join ';'
+          echo "PATH=$normalizedPath" >> $env:GITHUB_ENV
 
       - name: Download Hadoop source
         if: steps.should_build.outputs.should_build == 'true'
