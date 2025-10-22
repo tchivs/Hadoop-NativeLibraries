@@ -5,6 +5,12 @@ on:
   schedule:
     - cron: '0 6 * * *'
   workflow_dispatch:
+    inputs:
+      force_build:
+        description: 'Force trigger build even if version is up to date'
+        required: false
+        type: boolean
+        default: false
 
 permissions:
   contents: write
@@ -56,15 +62,20 @@ jobs:
             core.setOutput('tag', latestTag);
             core.setOutput('version', latestVersion);
 
+            const forceBuild = '${{ github.event.inputs.force_build }}' === 'true';
+
             if (currentTag !== latestTag) {
               fs.writeFileSync('current-release.txt', `${latestTag}\n`);
+              core.setOutput('update_needed', 'true');
+            } else if (forceBuild) {
+              core.info('Force build requested - triggering build even though version is up to date');
               core.setOutput('update_needed', 'true');
             } else {
               core.setOutput('update_needed', 'false');
             }
 
       - name: Commit updated release marker
-        if: steps.detect.outputs.update_needed == 'true'
+        if: steps.detect.outputs.update_needed == 'true' && github.event.inputs.force_build != 'true'
         env:
           NEW_TAG: ${{ steps.detect.outputs.tag }}
         run: |
@@ -75,7 +86,7 @@ jobs:
           git commit -m "Update latest Hadoop release to ${NEW_TAG}"
 
       - name: Push changes
-        if: steps.detect.outputs.update_needed == 'true'
+        if: steps.detect.outputs.update_needed == 'true' && github.event.inputs.force_build != 'true'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
