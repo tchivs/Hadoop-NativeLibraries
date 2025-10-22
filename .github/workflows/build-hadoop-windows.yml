@@ -23,7 +23,8 @@ on:
     paths:
       - '.github/workflows/build-hadoop-windows.yml'
       - 'scripts/**'
-
+permissions:
+  contents: write  # 允许创建和修改Release
 jobs:
   build-hadoop-native:
     runs-on: windows-latest
