@@ -23,12 +23,12 @@ jobs:
           set -euo pipefail
 
           latest_tag=$(curl -fsSL "https://api.github.com/repos/apache/hadoop/tags?per_page=100" | python - <<'PYCODE'
-import json, sys
-tags = json.load(sys.stdin)
-releases = [t["name"] for t in tags if t["name"].startswith("rel/release-")]
-releases.sort()
-print(releases[-1] if releases else "", end="")
-PYCODE
+            import json, sys
+            tags = json.load(sys.stdin)
+            releases = [t["name"] for t in tags if t["name"].startswith("rel/release-")]
+            releases.sort()
+            print(releases[-1] if releases else "", end="")
+          PYCODE
           )
 
           if [ -z "${latest_tag}" ]; then
