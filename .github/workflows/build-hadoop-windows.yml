@@ -60,6 +60,10 @@ jobs:
           echo "should_build=$shouldBuild" >> $env:GITHUB_OUTPUT
           Write-Host "Should build ${{ matrix.arch }}: $shouldBuild"
 
+      - name: Enable Git long paths
+        if: steps.should_build.outputs.should_build == 'true'
+        run: git config --system core.longpaths true
+
       - name: Checkout this repository (for scripts)
         if: steps.should_build.outputs.should_build == 'true'
         uses: actions/checkout@v4
