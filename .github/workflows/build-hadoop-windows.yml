@@ -32,11 +32,11 @@ jobs:
         arch: [x64, x86]
         include:
           - arch: x64
-            vcvars: vcvars64.bat
             platform_name: win64
+            msvc_arch: amd64
           - arch: x86
-            vcvars: vcvars32.bat
             platform_name: win32
+            msvc_arch: amd64_x86
 
     steps:
       - name: Check if build should run
@@ -115,6 +115,12 @@ jobs:
           $normalizedPath = ($pathEntries | Where-Object { $_ } | Select-Object -Unique) -join ';'
           echo "PATH=$normalizedPath" >> $env:GITHUB_ENV
 
+      - name: Configure MSVC environment
+        if: steps.should_build.outputs.should_build == 'true'
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: ${{ matrix.msvc_arch }}
+
       - name: Download Hadoop source
         if: steps.should_build.outputs.should_build == 'true'
         shell: pwsh
@@ -146,23 +152,20 @@ jobs:
 
       - name: Build Hadoop native libraries (${{ matrix.arch }})
         if: steps.should_build.outputs.should_build == 'true'
-        shell: cmd
+        shell: pwsh
         run: |
-          echo Building for architecture: ${{ matrix.arch }}
-
-          call "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Auxiliary\Build\${{ matrix.vcvars }}"
-
-          cd hadoop-%HADOOP_VERSION%-src
-
-          echo Building Hadoop native libraries for ${{ matrix.arch }}...
-          mvn package -Pdist,native-win -DskipTests -Dtar -Dmaven.javadoc.skip=true -Dcontainer-executor.conf.dir=/etc/hadoop -Drequire.fuse=false -Dexec.skip=true -Dremoteresources.skip=true
-
-          if errorlevel 1 (
-            echo Build failed for ${{ matrix.arch }}
-            exit /b 1
-          )
-
-          echo Build completed successfully for ${{ matrix.arch }}
+          $ErrorActionPreference = 'Stop'
+          Write-Host "Building Hadoop native libraries for ${env:BUILD_ARCH}..."
+          Push-Location "hadoop-$env:HADOOP_VERSION-src"
+          mvn package `
+            "-Pnative-win" `
+            "-DskipTests" `
+            "-Dmaven.javadoc.skip=true" `
+            "-Drequire.fuse=false" `
+            "-pl" ":hadoop-common,:hadoop-hdfs-native-client,:hadoop-maven-plugins" `
+            "-am"
+          Pop-Location
+          Write-Host "Build completed successfully for ${env:BUILD_ARCH}"
 
       - name: Collect artifacts (${{ matrix.arch }})
         if: steps.should_build.outputs.should_build == 'true'
@@ -176,36 +179,41 @@ jobs:
           New-Item -ItemType Directory -Force -Path $outputDir\lib
 
           # Find and copy built artifacts
-          $distPath = "hadoop-$version-src\hadoop-dist\target\hadoop-$version"
+          $sourceRoot = "hadoop-$version-src"
 
-          # Copy executables (.exe files)
-          if (Test-Path "$distPath\bin\*.exe") {
-            Copy-Item "$distPath\bin\*.exe" -Destination "$outputDir\bin\" -Force
-            Write-Host "Copied executables (.exe)"
+          $binSources = @(
+            Join-Path $sourceRoot "hadoop-common-project\hadoop-common\target\bin",
+            Join-Path $sourceRoot "hadoop-hdfs-project\hadoop-hdfs-native-client\target\bin"
+          )
+
+          foreach ($binSource in $binSources) {
+            if (Test-Path $binSource) {
+              Get-ChildItem -Path $binSource -Include *.exe -File -ErrorAction SilentlyContinue | ForEach-Object {
+                Copy-Item $_.FullName -Destination "$outputDir\bin\" -Force
+              }
+              Get-ChildItem -Path $binSource -Include *.dll -File -ErrorAction SilentlyContinue | ForEach-Object {
+                Copy-Item $_.FullName -Destination "$outputDir\bin\" -Force
+              }
+              Get-ChildItem -Path $binSource -Include *.cmd,*.bat -File -ErrorAction SilentlyContinue | ForEach-Object {
+                Copy-Item $_.FullName -Destination "$outputDir\bin\" -Force
+              }
+            }
           }
 
-          # Copy DLL files
-          if (Test-Path "$distPath\bin\*.dll") {
-            Copy-Item "$distPath\bin\*.dll" -Destination "$outputDir\bin\" -Force
-            Write-Host "Copied DLL files"
-          }
+          $libSources = @(
+            Join-Path $sourceRoot "hadoop-common-project\hadoop-common\target\native\bin",
+            Join-Path $sourceRoot "hadoop-common-project\hadoop-common\target\native",
+            Join-Path $sourceRoot "hadoop-hdfs-project\hadoop-hdfs-native-client\target",
+            Join-Path $sourceRoot "hadoop-hdfs-project\hadoop-hdfs-native-client\target\native",
+            Join-Path $sourceRoot "hadoop-hdfs-project\hadoop-hdfs-native-client\target\native\bin"
+          )
 
-          # Copy CMD files (hadoop.cmd, hdfs.cmd, yarn.cmd, mapred.cmd, etc.)
-          if (Test-Path "$distPath\bin\*.cmd") {
-            Copy-Item "$distPath\bin\*.cmd" -Destination "$outputDir\bin\" -Force
-            Write-Host "Copied CMD scripts"
-          }
-
-          # Copy BAT files if any
-          if (Test-Path "$distPath\bin\*.bat") {
-            Copy-Item "$distPath\bin\*.bat" -Destination "$outputDir\bin\" -Force
-            Write-Host "Copied BAT scripts"
-          }
-
-          # Copy native DLLs from lib directory
-          if (Test-Path "$distPath\lib\native\*.dll") {
-            Copy-Item "$distPath\lib\native\*.dll" -Destination "$outputDir\lib\" -Force
-            Write-Host "Copied native DLLs"
+          foreach ($libSource in $libSources) {
+            if (Test-Path $libSource) {
+              Get-ChildItem -Path $libSource -Include *.dll -File -ErrorAction SilentlyContinue | ForEach-Object {
+                Copy-Item $_.FullName -Destination "$outputDir\lib\" -Force
+              }
+            }
           }
 
           # List what was built
