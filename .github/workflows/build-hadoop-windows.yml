@@ -60,9 +60,19 @@ jobs:
           echo "should_build=$shouldBuild" >> $env:GITHUB_OUTPUT
           Write-Host "Should build ${{ matrix.arch }}: $shouldBuild"
 
-      - name: Checkout repository
+      - name: Checkout this repository (for scripts)
         if: steps.should_build.outputs.should_build == 'true'
         uses: actions/checkout@v4
+        with:
+          path: build-scripts
+
+      - name: Checkout Apache Hadoop source
+        if: steps.should_build.outputs.should_build == 'true'
+        uses: actions/checkout@v4
+        with:
+          repository: apache/hadoop
+          ref: rel/release-${{ github.event.inputs.hadoop_version || '3.4.2' }}
+          path: hadoop-src
 
       - name: Setup Java 8
         if: steps.should_build.outputs.should_build == 'true'
@@ -70,6 +80,16 @@ jobs:
         with:
           distribution: 'zulu'
           java-version: '8'
+
+      - name: Cache Maven packages
+        if: steps.should_build.outputs.should_build == 'true'
+        uses: actions/cache@v4
+        with:
+          path: ~/.m2/repository
+          key: ${{ runner.os }}-maven-${{ matrix.arch }}-${{ hashFiles('hadoop-src/**/pom.xml') }}
+          restore-keys: |
+            ${{ runner.os }}-maven-${{ matrix.arch }}-
+            ${{ runner.os }}-maven-
 
       - name: Set environment variables
         if: steps.should_build.outputs.should_build == 'true'
@@ -94,45 +114,26 @@ jobs:
         with:
           arch: ${{ matrix.arch }}
 
-      - name: Download Hadoop source
-        if: steps.should_build.outputs.should_build == 'true'
-        shell: pwsh
-        run: |
-          $version = "${{ github.event.inputs.hadoop_version || '3.4.2' }}"
-          $url = "https://archive.apache.org/dist/hadoop/common/hadoop-$version/hadoop-$version-src.tar.gz"
-          $sourceArchive = "hadoop-$version-src.tar.gz"
-
-          if (Test-Path $sourceArchive) {
-            Write-Host "Source archive already exists, skipping download"
-          } else {
-            Write-Host "Downloading Hadoop $version source..."
-            Invoke-WebRequest -Uri $url -OutFile $sourceArchive
-          }
-
-          if (-not (Test-Path "hadoop-$version-src")) {
-            Write-Host "Extracting source..."
-            tar -xzf $sourceArchive
-
-            if (Test-Path "hadoop-$version-src") {
-              Write-Host "Source extracted successfully"
-            } else {
-              Write-Error "Failed to extract source"
-              exit 1
-            }
-          } else {
-            Write-Host "Source directory already exists"
-          }
-
       - name: Patch winutils name conflict
         if: steps.should_build.outputs.should_build == 'true'
         shell: pwsh
         run: |
-          $base = "hadoop-$env:HADOOP_VERSION-src\hadoop-common-project\hadoop-common\src\main\winutils"
+          Write-Host "========================================" -ForegroundColor Cyan
+          Write-Host "Patching Windows SDK symbol conflicts" -ForegroundColor Cyan
+          Write-Host "========================================" -ForegroundColor Cyan
+
+          $base = "hadoop-src\hadoop-common-project\hadoop-common\src\main\winutils"
+
+          # All files that need patching for GetFileInformationByName conflict
           $targets = @(
             "$base\include\winutils.h",
-            "$base\libwinutils.c"
+            "$base\libwinutils.c",
+            "$base\chmod.c",
+            "$base\hardlink.c",
+            "$base\ls.c"
           )
 
+          $patchCount = 0
           foreach ($file in $targets) {
             if (-not (Test-Path $file)) {
               Write-Warning "Expected file not found: $file"
@@ -140,14 +141,21 @@ jobs:
             }
 
             $original = Get-Content -Raw -Path $file
-            $patched = $original -replace '\bGetFileInformationByName\b', 'HadoopGetFileInformationByName'
+            # Replace all instances of GetFileInformationByName with HadoopGetFileInformationByName
+            $patched = $original -replace 'GetFileInformationByName', 'HadoopGetFileInformationByName'
 
             if ($original -ne $patched) {
-              Set-Content -Path $file -Value $patched -Encoding UTF8
-              Write-Host "Patched $file to avoid Windows SDK symbol conflict."
+              Set-Content -Path $file -Value $patched -NoNewline -Encoding UTF8
+              Write-Host "✓ Patched $(Split-Path $file -Leaf) to avoid Windows SDK symbol conflict" -ForegroundColor Green
+              $patchCount++
             } else {
-              Write-Host "No patch needed for $file."
+              Write-Host "- No changes needed for $(Split-Path $file -Leaf)" -ForegroundColor Gray
             }
+          }
+
+          Write-Host "`n✓ Total files patched: $patchCount" -ForegroundColor Green
+          if ($patchCount -eq 0) {
+            Write-Warning "No files were patched. This might indicate the patch logic needs updating."
           }
 
       - name: Build Hadoop native libraries (${{ matrix.arch }})
@@ -155,15 +163,24 @@ jobs:
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
-          Write-Host "Building Hadoop native libraries for ${env:BUILD_ARCH}..."
-          Push-Location "hadoop-$env:HADOOP_VERSION-src"
+          Write-Host "========================================" -ForegroundColor Cyan
+          Write-Host "Building Hadoop $env:HADOOP_VERSION for ${env:BUILD_ARCH}" -ForegroundColor Cyan
+          Write-Host "========================================" -ForegroundColor Cyan
 
+          Push-Location "hadoop-src"
+
+          # Set Platform for CMake
           if ($env:BUILD_ARCH -eq 'x86') {
             $env:Platform = 'Win32'
           } else {
             $env:Platform = 'x64'
           }
 
+          Write-Host "`nMaven build starting..." -ForegroundColor Yellow
+          Write-Host "Platform: $env:Platform"
+          Write-Host "Architecture: $env:BUILD_ARCH`n"
+
+          # Build hadoop-common and hadoop-hdfs-native-client
           mvn package `
             "-Pnative-win" `
             "-DskipTests" `
@@ -171,43 +188,59 @@ jobs:
             "-Drequire.fuse=false" `
             "-pl" ":hadoop-common,:hadoop-hdfs-native-client,:hadoop-maven-plugins" `
             "-am"
+
           $mvnExit = $LASTEXITCODE
           Pop-Location
+
           if ($mvnExit -ne 0) {
-            Write-Error "Maven build failed for ${env:BUILD_ARCH} with exit code $mvnExit"
+            Write-Host "`n✗ Build failed with exit code $mvnExit" -ForegroundColor Red
             exit $mvnExit
           }
-          Write-Host "Build completed successfully for ${env:BUILD_ARCH}"
+
+          Write-Host "`n✓ Build completed successfully for ${env:BUILD_ARCH}" -ForegroundColor Green
 
       - name: Collect artifacts (${{ matrix.arch }})
         if: steps.should_build.outputs.should_build == 'true'
         shell: pwsh
         run: |
+          Write-Host "========================================" -ForegroundColor Cyan
+          Write-Host "Collecting build artifacts" -ForegroundColor Cyan
+          Write-Host "========================================" -ForegroundColor Cyan
+
           $version = "${{ github.event.inputs.hadoop_version || '3.4.2' }}"
           $arch = "${{ matrix.arch }}"
           $outputDir = "hadoop-$version-windows-$arch"
 
-          New-Item -ItemType Directory -Force -Path $outputDir\bin
-          New-Item -ItemType Directory -Force -Path $outputDir\lib
+          New-Item -ItemType Directory -Force -Path $outputDir\bin | Out-Null
+          New-Item -ItemType Directory -Force -Path $outputDir\lib | Out-Null
 
-          # Find and copy built artifacts
-          $sourceRoot = "hadoop-$version-src"
+          # Source root is now hadoop-src instead of hadoop-$version-src
+          $sourceRoot = "hadoop-src"
 
           $binSources = @(
             Join-Path $sourceRoot "hadoop-common-project\hadoop-common\target\bin",
             Join-Path $sourceRoot "hadoop-hdfs-project\hadoop-hdfs-native-client\target\bin"
           )
 
+          $filesCopied = 0
           foreach ($binSource in $binSources) {
             if (Test-Path $binSource) {
+              Write-Host "Collecting from: $binSource" -ForegroundColor Yellow
+
               Get-ChildItem -Path $binSource -Filter *.exe -File -ErrorAction SilentlyContinue | ForEach-Object {
                 Copy-Item $_.FullName -Destination "$outputDir\bin\" -Force
+                Write-Host "  ✓ $($_.Name)" -ForegroundColor Green
+                $filesCopied++
               }
               Get-ChildItem -Path $binSource -Filter *.dll -File -ErrorAction SilentlyContinue | ForEach-Object {
                 Copy-Item $_.FullName -Destination "$outputDir\bin\" -Force
+                Write-Host "  ✓ $($_.Name)" -ForegroundColor Green
+                $filesCopied++
               }
               Get-ChildItem -Path $binSource -File -ErrorAction SilentlyContinue | Where-Object { $_.Extension -in @('.cmd', '.bat') } | ForEach-Object {
                 Copy-Item $_.FullName -Destination "$outputDir\bin\" -Force
+                Write-Host "  ✓ $($_.Name)" -ForegroundColor Green
+                $filesCopied++
               }
             }
           }
@@ -223,33 +256,46 @@ jobs:
           foreach ($libSource in $libSources) {
             if (Test-Path $libSource) {
               Get-ChildItem -Path $libSource -Filter *.dll -File -ErrorAction SilentlyContinue | ForEach-Object {
-                Copy-Item $_.FullName -Destination "$outputDir\lib\" -Force
+                $destFile = "$outputDir\lib\$($_.Name)"
+                if (-not (Test-Path $destFile)) {
+                  Copy-Item $_.FullName -Destination "$outputDir\lib\" -Force
+                  Write-Host "  ✓ $($_.Name) (lib)" -ForegroundColor Green
+                  $filesCopied++
+                }
               }
             }
           }
 
+          Write-Host "`nTotal files collected: $filesCopied" -ForegroundColor Cyan
+
           # List what was built
-          Write-Host "`nBuilt artifacts for $arch :"
-          Get-ChildItem -Recurse $outputDir
+          Write-Host "`nBuilt artifacts for $arch :" -ForegroundColor Cyan
+          Get-ChildItem -Recurse $outputDir | Format-Table -AutoSize
 
           # Check file architecture using dumpbin (if available)
-          $dumpbin = "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Tools\MSVC\*\bin\Hostx64\x64\dumpbin.exe"
-          if (Test-Path $dumpbin) {
-            Write-Host "`nVerifying architecture of hadoop.dll:"
-            & (Get-Item $dumpbin | Select-Object -First 1).FullName /headers "$outputDir\bin\hadoop.dll" | Select-String "machine"
+          $hadoopDll = "$outputDir\bin\hadoop.dll"
+          if (Test-Path $hadoopDll) {
+            $dumpbin = Get-ChildItem "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Tools\MSVC\*\bin\Hostx64\x64\dumpbin.exe" -ErrorAction SilentlyContinue | Select-Object -First 1
+            if ($dumpbin) {
+              Write-Host "`nVerifying architecture of hadoop.dll:" -ForegroundColor Yellow
+              & $dumpbin.FullName /headers $hadoopDll | Select-String "machine"
+            }
           }
 
           # Create version info file
           @"
-          Hadoop Version: $version
-          Build Date: $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')
-          Architecture: $arch
-          Platform: Windows ${{ matrix.platform_name }}
-          Built with: Visual Studio 2022
+Hadoop Version: $version
+Build Date: $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss UTC')
+Architecture: $arch
+Platform: Windows ${{ matrix.platform_name }}
+Built with: Visual Studio 2022
+Source: Apache Hadoop Git Repository
 
-          IMPORTANT: This build is for $arch architecture only.
-          Make sure your Java JVM matches this architecture ($arch).
-          "@ | Out-File "$outputDir\BUILD_INFO.txt"
+IMPORTANT: This build is for $arch architecture only.
+Make sure your Java JVM matches this architecture ($arch).
+"@ | Out-File "$outputDir\BUILD_INFO.txt"
+
+          Write-Host "`n✓ Artifacts collected successfully" -ForegroundColor Green
 
       - name: Upload artifacts (${{ matrix.arch }})
         if: steps.should_build.outputs.should_build == 'true'
