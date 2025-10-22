@@ -24,15 +24,15 @@ jobs:
           script: |
             const fs = require('fs');
 
-            const { data } = await github.repos.listTags({
+            const response = await github.request('GET /repos/{owner}/{repo}/git/refs/tags', {
               owner: 'apache',
               repo: 'hadoop',
               per_page: 100,
             });
 
-            const releaseTags = data
-              .map(tag => tag.name)
-              .filter(name => name.startsWith('rel/release-'))
+            const releaseTags = response.data
+              .map(ref => ref.ref?.replace('refs/tags/', ''))
+              .filter(name => name && name.startsWith('rel/release-'))
               .sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
 
             if (!releaseTags.length) {
