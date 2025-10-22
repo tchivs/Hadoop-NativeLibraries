@@ -111,7 +111,10 @@ jobs:
           $pathEntries = $gitPaths + ($env:PATH -split ';')
           $normalizedPath = ($pathEntries | Where-Object { $_ } | Select-Object -Unique) -join ';'
           echo "PATH=$normalizedPath" >> $env:GITHUB_ENV
-
+      - name: 查看已安装的 MSVC 工具集版本
+        run: |
+          dir "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Tools\MSVC\"
+        shell: cmd
       - name: Configure MSVC environment
         if: steps.should_build.outputs.should_build == 'true'
         uses: ilammy/msvc-dev-cmd@v1
