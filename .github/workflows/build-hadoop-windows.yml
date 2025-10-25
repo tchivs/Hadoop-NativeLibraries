@@ -164,18 +164,27 @@ jobs:
 
           Write-Host "`n✓ Total C/C++ files patched: $patchCount" -ForegroundColor Green
 
-          # Patch Visual Studio project files to use current toolset (v143)
-          Write-Host "`nPatching Visual Studio project files for v143 toolset..." -ForegroundColor Cyan
+          # Remove PlatformToolset to let MSBuild use default toolset
+          Write-Host "`nRemoving hardcoded PlatformToolset from project files..." -ForegroundColor Cyan
           $vcxprojFiles = Get-ChildItem -Path $base -Filter *.vcxproj
           $toolsetPatchCount = 0
           foreach ($projFile in $vcxprojFiles) {
-            $content = Get-Content -Raw -Path $projFile.FullName
-            # Replace any v14x toolset with v143 (current VS 2022)
-            $newContent = $content -replace '<PlatformToolset>v14[0-9]</PlatformToolset>', '<PlatformToolset>v143</PlatformToolset>'
+            [xml]$projXml = Get-Content $projFile.FullName
+            $modified = $false
 
-            if ($content -ne $newContent) {
-              Set-Content -Path $projFile.FullName -Value $newContent -NoNewline -Encoding UTF8
-              Write-Host "✓ Updated $($projFile.Name) to use v143 toolset" -ForegroundColor Green
+            # Remove PlatformToolset from all PropertyGroup elements
+            foreach ($propGroup in $projXml.Project.PropertyGroup) {
+              if ($propGroup.PlatformToolset) {
+                $oldToolset = $propGroup.PlatformToolset
+                $propGroup.RemoveChild($propGroup.SelectSingleNode('PlatformToolset')) | Out-Null
+                Write-Host "  Removed PlatformToolset '$oldToolset' from $($projFile.Name)" -ForegroundColor Yellow
+                $modified = $true
+              }
+            }
+
+            if ($modified) {
+              $projXml.Save($projFile.FullName)
+              Write-Host "✓ Updated $($projFile.Name) to use environment's default toolset" -ForegroundColor Green
               $toolsetPatchCount++
             }
           }
