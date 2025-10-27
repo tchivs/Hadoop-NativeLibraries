@@ -169,22 +169,15 @@ jobs:
           $vcxprojFiles = Get-ChildItem -Path $base -Filter *.vcxproj
           $toolsetPatchCount = 0
           foreach ($projFile in $vcxprojFiles) {
-            [xml]$projXml = Get-Content $projFile.FullName
-            $modified = $false
+            $content = Get-Content -Raw -Path $projFile.FullName
 
-            # Remove PlatformToolset from all PropertyGroup elements
-            foreach ($propGroup in $projXml.Project.PropertyGroup) {
-              if ($propGroup.PlatformToolset) {
-                $oldToolset = $propGroup.PlatformToolset
-                $propGroup.RemoveChild($propGroup.SelectSingleNode('PlatformToolset')) | Out-Null
-                Write-Host "  Removed PlatformToolset '$oldToolset' from $($projFile.Name)" -ForegroundColor Yellow
-                $modified = $true
-              }
-            }
+            # Remove entire PlatformToolset element and its contents
+            $newContent = $content -replace '<PlatformToolset>.*?</PlatformToolset>', ''
+            $newContent = $newContent -replace '<PlatformToolset\s*/>', ''
 
-            if ($modified) {
-              $projXml.Save($projFile.FullName)
-              Write-Host "✓ Updated $($projFile.Name) to use environment's default toolset" -ForegroundColor Green
+            if ($content -ne $newContent) {
+              Set-Content -Path $projFile.FullName -Value $newContent -NoNewline -Encoding UTF8
+              Write-Host "✓ Removed PlatformToolset from $($projFile.Name)" -ForegroundColor Green
               $toolsetPatchCount++
             }
           }
